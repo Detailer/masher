@@ -3,6 +3,16 @@ import argparse
 from datetime import date, datetime
 
 def filter_dates(df, start_date=None, end_date=None):
+    """Return rows whose date falls within the optional inclusive bounds.
+
+    Args:
+        df: DataFrame with a ``date`` column containing Python date values.
+        start_date: Earliest date to include, or None for no lower bound.
+        end_date: Latest date to include, or None for no upper bound.
+
+    Returns:
+        A DataFrame containing the matching rows.
+    """
     if start_date and end_date:
         return df[df["date"].between(start_date, end_date)]
     if start_date:
@@ -12,6 +22,16 @@ def filter_dates(df, start_date=None, end_date=None):
     return df
 
 def parse_hdfc_statement(input_file: str, start_date: date | None = None, end_date: date | None = None):
+    """Read and normalize an HDFC text statement.
+
+    Args:
+        input_file: Path to the HDFC statement file.
+        start_date: Optional inclusive lower date bound.
+        end_date: Optional inclusive upper date bound.
+
+    Returns:
+        A DataFrame with date, description, amount, and type columns.
+    """
     text_df = pd.read_csv(input_file)
 
     # drop columns
@@ -35,6 +55,16 @@ def parse_hdfc_statement(input_file: str, start_date: date | None = None, end_da
     return filter_dates(text_df, start_date, end_date)
 
 def parse_icici_statement(input_file: str, start_date: date | None = None, end_date: date | None = None):
+    """Read and normalize an ICICI spreadsheet statement.
+
+    Args:
+        input_file: Path to the ICICI statement spreadsheet.
+        start_date: Optional inclusive lower date bound.
+        end_date: Optional inclusive upper date bound.
+
+    Returns:
+        A DataFrame with date, description, amount, and type columns.
+    """
     sheet_df = pd.read_excel(input_file, skiprows=15)
 
     # Keep the date, description, and amount columns; discard other columns.
@@ -67,12 +97,24 @@ def parse_icici_statement(input_file: str, start_date: date | None = None, end_d
     return filter_dates(sheet_df, start_date, end_date)
 
 def parse_statements(hdfc_input_file: str, icici_input_file: str, start_date: date | None = None, end_date: date | None = None):
+    """Parse both bank statements and combine their transactions.
+
+    Args:
+        hdfc_input_file: Path to the HDFC text statement.
+        icici_input_file: Path to the ICICI spreadsheet statement.
+        start_date: Optional inclusive lower date bound for both statements.
+        end_date: Optional inclusive upper date bound for both statements.
+
+    Returns:
+        A combined DataFrame with a fresh sequential index.
+    """
     hdfc_df = parse_hdfc_statement(hdfc_input_file, start_date, end_date)
     icici_df = parse_icici_statement(icici_input_file, start_date, end_date)
 
     return pd.concat([hdfc_df, icici_df], ignore_index=True)
 
 def main():
+    """Parse CLI arguments, process both statements, and print the result."""
     parser = argparse.ArgumentParser()
     parser.add_argument('hdfc_input', help='HDFC statement in .txt format')
     parser.add_argument('icici_input', help='ICICI statement in .xls format')
