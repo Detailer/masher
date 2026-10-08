@@ -99,10 +99,24 @@ def _select_tags(tags, suggested_ids=None):
         print('Enter tag numbers separated by commas, 0 for no tag, x to omit, or q to finish.')
 
 
+def _select_toshl_description(suggested=''):
+    """Prompt for an optional short description for Toshl."""
+    suggested = str(suggested or '').strip()
+    suffix = f' [{suggested}]' if suggested else ''
+    answer = input(
+        f'Optional Toshl description{suffix}; Enter keeps it, - clears it: '
+    ).strip()
+    if answer == '-':
+        return ''
+    return answer or suggested
+
+
 def _save_mappings(reviewed, mappings_path, taxonomy):
     path = Path(mappings_path)
     data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'mappings': []}
     mappings = data.setdefault('mappings', [])
+    for record in mappings:
+        record.pop('toshl_description', None)
     existing = {_key(item.get('description')): item for item in mappings}
 
     category_ids = {str(item['id']) for item in taxonomy['categories']}
@@ -269,9 +283,11 @@ def review_matches(input_path, output_path=None, mappings_path=_DEFAULT_MAPPINGS
             print(f'  Omitted {len(group_indices)} transaction(s) with this description.')
             continue
 
+        toshl_description = _select_toshl_description(first.get('toshl_description', ''))
         transactions.loc[group_indices, 'category_id'] = category_id
         transactions.loc[group_indices, 'tag_ids'] = json.dumps(tag_ids)
         transactions.loc[group_indices, 'match_method'] = 'manual'
+        transactions.loc[group_indices, 'toshl_description'] = toshl_description
         reviewed[description_key] = {
             'description': str(first['normalised_description']).strip(),
             'category_id': category_id,

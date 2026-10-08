@@ -97,12 +97,18 @@ def export_to_toshl(input_path, output_path=None, taxonomy_path=_DEFAULT_TAXONOM
             raise ValueError(f'Invalid amount on input row {row_number}: {transaction["amount"]!r}')
         amount_text = format(abs(float(amount_value)), '.15g')
 
+        toshl_description = transaction.get('toshl_description', '')
+        if pd.isna(toshl_description):
+            toshl_description = ''
+        else:
+            toshl_description = str(toshl_description).strip()
+
         output_rows.append({
             'Date': date_value.strftime('%d-%m-%Y'),
             'Category': categories[category_id],
             'Expense Amount': amount_text,
             'Tags': ', '.join(tag_names),
-            'Description': '',
+            'Description': toshl_description,
             'Account': 'Cash',
             'Currency': 'INR',
         })

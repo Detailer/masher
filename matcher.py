@@ -86,6 +86,7 @@ def match_transactions(
     result['category_id'] = pd.NA
     result['tag_ids'] = pd.Series([[] for _ in range(len(result))], index=result.index, dtype=object)
     result['match_method'] = 'unknown'
+    result['toshl_description'] = ''
 
     for index, key in keys.items():
         mapping = mapping_by_description.get(key)
