@@ -46,6 +46,31 @@ You can choose another output file with `--output PATH`.
 
 ## Usage
 
+### Local WEB UI
+Statement files are parsed locally and are not sent to a hosted service.
+
+1. From the project root, install the optional UI dependency and start Streamlit:
+
+```sh
+uv sync --extra ui
+uv run streamlit run test-ui/app.py --server.address 127.0.0.1
+```
+
+2. Open the local URL printed by Streamlit. Upload either statement or both. The app parses the files with `parse.py`, normalizes and matches them with the existing pipeline, then shows a paginated sheet with one transaction per row, sorted newest-first by date by default. Click a column heading to sort by it, and click again to reverse the order. The sheet shows 50 rows per page with previous/next arrow controls below the list; page changes return the view to the top of the transactions. Amounts and the optional Toshl `Description` field can be edited inline and are used in the downloads. Category and tag selections are editable, and the tag list follows the selected category. Repeated normalized descriptions share a learned mapping, so an edit applies to all rows with that description. Marking a row to omit excludes that description from the current output and future matching.
+
+3. Saving writes manual mappings and omissions to the local JSON files selected in the sidebar. The app calls `export_to_toshl.py` to prepare the Toshl import CSV. The reviewed and Toshl CSVs are offered as browser downloads and are not saved into the repository automatically.
+
+4. The defaults are `data/toshl_categories_tags.json`, `data/mappings.json`, and `data/omitted_descriptions.json`. Change their paths in the sidebar to use another local data set.
+
+##### Install dependencies with pip
+
+```sh
+pip install -e '.[ui]'
+```
+
+
+### Manual 
+
 Run these scripts directly to process statements and create a Toshl import CSV:
 
 1. Parse the statement files, normalise descriptions, and match transactions. Provide either statement path or both; `matcher.py` runs parsing and normalisation as part of this step.
