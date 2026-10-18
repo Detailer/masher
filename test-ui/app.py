@@ -108,13 +108,15 @@ def _remember_page_edits(transactions, row_indices, run_id):
             f'toshl_description_{row_key}',
             draft.get('toshl_description', baseline_toshl_description),
         )
-        omit = st.session_state.get(f'omit_{row_key}', draft.get('omit', False))
+        omit_action = st.session_state.get(
+            f'omit_action_{row_key}', draft.get('omit_action', 'Include')
+        )
         drafts[index] = {
             'category_id': category,
             'tag_ids': tag_ids,
             'amount': amount,
             'toshl_description': toshl_description,
-            'omit': omit,
+            'omit_action': omit_action,
         }
 
 
@@ -275,7 +277,7 @@ if transactions is not None:
 
         run_id = st.session_state['run_id']
         review_edits = st.session_state.setdefault('review_edits', {})
-        head = st.columns([1.0, 2.1, 1.0, 1.8, 1.35, 1.55, .6])
+        head = st.columns([0.95, 2.0, 0.9, 1.65, 1.2, 1.4, 1.3])
         sortable_headers = (
             ('Date', 'date'),
             ('Transaction', 'transaction'),
@@ -295,7 +297,10 @@ if transactions is not None:
                     st.session_state['sort_ascending'] = key not in {'date', 'amount'}
                 st.session_state['scroll_to_transaction_list'] = True
                 st.rerun()
-        head[6].markdown('**Omit**')
+        head[6].button(
+            'Inclusion', use_container_width=True, disabled=True,
+            key='inclusion_header',
+        )
 
         for index in sort_order[start_index:end_index]:
             transaction = transactions.iloc[index]
@@ -332,7 +337,7 @@ if transactions is not None:
                 'toshl_description', original_toshl_description
             )
 
-            row = st.columns([1.0, 2.1, 1.0, 1.8, 1.35, 1.55, .6], vertical_alignment='center')
+            row = st.columns([0.95, 2.0, 0.9, 1.65, 1.2, 1.4, 1.3], vertical_alignment='center')
             row[0].text(date_label)
             row[0].caption(str(transaction.get('type', '')))
             row[1].text(normalized_description or '(no normalized description)')
@@ -370,9 +375,12 @@ if transactions is not None:
                 key=f'toshl_description_{row_key}',
                 placeholder='Description', label_visibility='collapsed',
             )
-            row[6].checkbox(
-                'Omit', value=draft.get('omit', False), key=f'omit_{row_key}',
-                label_visibility='collapsed',
+            omit_options = ['Include', 'Omit once', 'Omit always']
+            omit_action = draft.get('omit_action', 'Include')
+            row[6].selectbox(
+                'Omission', omit_options,
+                index=omit_options.index(omit_action) if omit_action in omit_options else 0,
+                key=f'omit_action_{row_key}', label_visibility='collapsed',
             )
             st.divider()
 
@@ -398,7 +406,10 @@ if transactions is not None:
             st.session_state['scroll_to_transaction_list'] = True
             st.rerun()
 
-        st.info('Edits remain temporary until you save the review. Use the save button below to update mappings and prepare both CSV downloads.')
+        st.info(
+            'Omit once excludes a transaction from these CSVs. Omit always also saves its normalized '
+            'description so future runs skip it. Save the review to apply your changes and prepare the downloads.'
+        )
         allow_skip = st.checkbox('Export classified transactions only if some rows have no category', value=False)
         save_clicked_bottom = st.button(
             'Save review and prepare Toshl CSV', type='primary', key='save_review_bottom'
@@ -412,6 +423,7 @@ if transactions is not None:
                 save_progress.progress(0.2, text='Checking classifications and omissions…')
                 selections = {}
                 omitted_keys = set()
+                always_omitted_keys = set()
                 omitted_row_indices = set()
                 for index, transaction in transactions.iterrows():
                     description = str(transaction.get('normalised_description') or '').strip()
@@ -437,10 +449,12 @@ if transactions is not None:
                     toshl_description = str(
                         draft.get('toshl_description', original_toshl_description) or ''
                     ).strip()
-                    omitted = draft.get('omit', False)
-                    if omitted:
+                    omit_action = draft.get('omit_action', 'Include')
+                    if omit_action in {'Omit once', 'Omit always'}:
                         if description_key:
                             omitted_keys.add(description_key)
+                            if omit_action == 'Omit always':
+                                always_omitted_keys.add(description_key)
                         else:
                             omitted_row_indices.add(index)
                     original_category_value = transaction.get('category_id')
@@ -459,7 +473,7 @@ if transactions is not None:
                         'original_toshl_description': original_toshl_description,
                         'original_category_id': original_category,
                         'original_tag_ids': [str(tag_id) for tag_id in original_tag_ids],
-                        'omit': omitted,
+                        'omit_action': omit_action,
                     })
 
                 mapping_updates = {}
@@ -538,12 +552,24 @@ if transactions is not None:
                         f'{mapping_counts["changed"]} changed, '
                         f'{mapping_counts["unchanged"]} unchanged.'
                     )
-                if omitted_keys:
+                if always_omitted_keys:
                     omitted_descriptions = [
-                        rows[0]['description'] for key, rows in selections.items() if key in omitted_keys
+                        rows[0]['description'] for key, rows in selections.items()
+                        if key in always_omitted_keys
                     ]
                     added_omissions = _save_omissions(omitted_descriptions, omissions_path)
-                    st.info(f'Saved {added_omissions} new omitted description(s).')
+                    st.info(f'Saved {added_omissions} new permanent omission(s).')
+
+                unpersistable_always_count = sum(
+                    1 for rows in selections.values()
+                    if not rows[0]['normalised_key']
+                    and rows[0]['omit_action'] == 'Omit always'
+                )
+                if unpersistable_always_count:
+                    st.warning(
+                        f'{unpersistable_always_count} row(s) marked Omit always had no normalized description. '
+                        'They were omitted from this export only because they cannot be saved as reusable omissions.'
+                    )
 
                 blank_description_categories = sum(
                     1 for index, transaction in transactions.iterrows()
