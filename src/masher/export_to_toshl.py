@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-_DATA_DIR = Path(__file__).parent / 'data'
+_DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
 _DEFAULT_TAXONOMY = _DATA_DIR / 'toshl_categories_tags.json'
 _COLUMNS = [
     'Date', 'Category', 'Expense Amount', 'Tags',
@@ -123,9 +123,9 @@ def export_to_toshl(input_path, output_path=None, taxonomy_path=_DEFAULT_TAXONOM
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert matched_reviewed.csv to Toshl import CSV format.'
+        description='Convert a reviewed transaction CSV to Toshl import format.'
     )
-    parser.add_argument('input_csv', help='reviewed transaction CSV from reviewer.py')
+    parser.add_argument('input_csv', help='reviewed transaction CSV from masher.reviewer')
     parser.add_argument('-o', '--output', help='output path; defaults to <input>_toshl.csv')
     parser.add_argument(
         '--skip-unclassified',

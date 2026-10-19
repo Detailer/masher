@@ -1,6 +1,6 @@
 import argparse
 from datetime import datetime
-from parse import parse_statements
+from .parse import parse_statements
 
 def normalise_description(parsed_df):
     """Return a copy with descriptions simplified by statement type."""

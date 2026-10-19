@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-_DATA_DIR = Path(__file__).parent / 'data'
+_DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
 _DEFAULT_TAXONOMY = _DATA_DIR / 'toshl_categories_tags.json'
 _DEFAULT_MAPPINGS = _DATA_DIR / 'mappings.json'
 _DEFAULT_OMISSIONS = _DATA_DIR / 'omitted_descriptions.json'
@@ -103,8 +103,8 @@ def main():
     import argparse
     from datetime import datetime
 
-    from normalise import normalise_description
-    from parse import parse_hdfc_statement, parse_icici_statement, parse_statements
+    from .normalise import normalise_description
+    from .parse import parse_hdfc_statement, parse_icici_statement, parse_statements
 
     parser = argparse.ArgumentParser(
         description='Normalize transactions and match them to Toshl categories and tags.'

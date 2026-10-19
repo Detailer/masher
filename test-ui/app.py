@@ -13,14 +13,15 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+SOURCE_DIR = ROOT / 'src'
+if str(SOURCE_DIR) not in sys.path:
+    sys.path.insert(0, str(SOURCE_DIR))
 
-from export_to_toshl import export_to_toshl
-from matcher import match_transactions
-from normalise import normalise_description
-from parse import parse_hdfc_statement, parse_icici_statement
-from reviewer import _key, _save_mappings, _save_omissions
+from masher.export_to_toshl import export_to_toshl
+from masher.matcher import match_transactions
+from masher.normalise import normalise_description
+from masher.parse import parse_hdfc_statement, parse_icici_statement
+from masher.reviewer import _key, _save_mappings, _save_omissions
 
 DEFAULT_DATA = ROOT / 'data'
 PAGE_SIZE = 50

@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_OUTPUT = ROOT / 'data' / 'toshl_categories_tags.json'
 _API_BASE = 'https://api.toshl.com'
 
@@ -100,7 +100,7 @@ def sync_taxonomy(output_path=_DEFAULT_OUTPUT, *, dry_run=False):
     if not token:
         raise RuntimeError(
             'TOSHL_API_TOKEN is missing. Put it in the local .env file and run '
-            'with: uv run --env-file .env python sync_toshl_taxonomy.py'
+            'with: uv run --env-file .env python scripts/sync_toshl_taxonomy.py'
         )
 
     categories_response = _fetch_collection('categories', token)
