@@ -21,9 +21,11 @@ from masher.export_to_toshl import export_to_toshl
 from masher.matcher import match_transactions
 from masher.normalise import normalise_description
 from masher.parse import parse_hdfc_statement, parse_icici_statement
-from masher.reviewer import _key, _save_mappings, _save_omissions
+from masher.reviewer import _save_mappings, _save_omissions
+from masher.utils.descriptions import description_key as normalise_description_key
+from masher.utils.paths import DATA_DIR
 
-DEFAULT_DATA = ROOT / 'data'
+DEFAULT_DATA = DATA_DIR
 PAGE_SIZE = 50
 
 st.set_page_config(page_title='Statement review', layout='wide')
@@ -230,7 +232,7 @@ if transactions is not None:
         if 'toshl_description' not in transactions:
             transactions['toshl_description'] = ''
         st.session_state['transactions'] = transactions
-        keys = transactions['normalised_description'].map(_key)
+        keys = transactions['normalised_description'].map(normalise_description_key)
         st.header('Review transactions')
         matched_count = int(transactions['category_id'].notna().sum())
         metric1, metric2, metric3 = st.columns(3)
@@ -306,7 +308,7 @@ if transactions is not None:
         for index in sort_order[start_index:end_index]:
             transaction = transactions.iloc[index]
             normalized_description = str(transaction.get('normalised_description') or '').strip()
-            description_key = _key(normalized_description)
+            description_key = normalise_description_key(normalized_description)
             row_key = f'{run_id}_{index}'
             date_value = pd.to_datetime(transaction.get('date'), errors='coerce')
             date_label = date_value.strftime('%d-%m-%Y') if not pd.isna(date_value) else '—'
@@ -428,7 +430,7 @@ if transactions is not None:
                 omitted_row_indices = set()
                 for index, transaction in transactions.iterrows():
                     description = str(transaction.get('normalised_description') or '').strip()
-                    description_key = _key(description)
+                    description_key = normalise_description_key(description)
                     selection_key = description_key or ('row', index)
                     row_key = f'{run_id}_{index}'
                     category_value = transaction.get('category_id')
@@ -530,7 +532,7 @@ if transactions is not None:
                     draft = review_edits.get(index, {})
                     if 'amount' in draft and draft['amount'] is not None:
                         reviewed.at[index, 'amount'] = draft['amount']
-                    description_key = _key(transaction.get('normalised_description'))
+                    description_key = normalise_description_key(transaction.get('normalised_description'))
                     selection_key = description_key or ('row', index)
                     if description_key in omitted_keys or index in omitted_row_indices:
                         continue
@@ -575,7 +577,7 @@ if transactions is not None:
                 blank_description_categories = sum(
                     1 for index, transaction in transactions.iterrows()
                     if index in reviewed.index
-                    and not _key(transaction.get('normalised_description'))
+                    and not normalise_description_key(transaction.get('normalised_description'))
                     and pd.notna(reviewed.at[index, 'category_id'])
                 )
                 if blank_description_categories:

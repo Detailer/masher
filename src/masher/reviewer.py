@@ -2,21 +2,16 @@
 
 import argparse
 import json
-import re
 from pathlib import Path
 
 import pandas as pd
 
-_DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
-_DEFAULT_TAXONOMY = _DATA_DIR / 'toshl_categories_tags.json'
-_DEFAULT_MAPPINGS = _DATA_DIR / 'mappings.json'
-_DEFAULT_OMISSIONS = _DATA_DIR / 'omitted_descriptions.json'
+from .utils.descriptions import description_key
+from .utils.paths import MAPPINGS_PATH, OMISSIONS_PATH, TAXONOMY_PATH
 
-
-def _key(value):
-    if pd.isna(value):
-        return ''
-    return re.sub(r'\s+', ' ', str(value)).strip().casefold()
+_DEFAULT_TAXONOMY = TAXONOMY_PATH
+_DEFAULT_MAPPINGS = MAPPINGS_PATH
+_DEFAULT_OMISSIONS = OMISSIONS_PATH
 
 
 def _parse_tag_ids(value):
@@ -117,7 +112,7 @@ def _save_mappings(reviewed, mappings_path, taxonomy):
     mappings = data.setdefault('mappings', [])
     for record in mappings:
         record.pop('toshl_description', None)
-    existing = {_key(item.get('description')): item for item in mappings}
+    existing = {description_key(item.get('description')): item for item in mappings}
 
     category_ids = {str(item['id']) for item in taxonomy['categories']}
     valid_links = {
@@ -167,10 +162,10 @@ def _save_mappings(reviewed, mappings_path, taxonomy):
 def _save_omissions(descriptions, omissions_path=_DEFAULT_OMISSIONS):
     path = Path(omissions_path)
     data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'descriptions': []}
-    existing = {_key(value) for value in data.get('descriptions', [])}
+    existing = {description_key(value) for value in data.get('descriptions', [])}
     added = 0
     for description in descriptions:
-        key = _key(description)
+        key = description_key(description)
         if key and key not in existing:
             data.setdefault('descriptions', []).append(description)
             existing.add(key)
@@ -193,8 +188,8 @@ def review_matches(input_path, output_path=None, mappings_path=_DEFAULT_MAPPINGS
     preexisting_omitted_count = 0
     if existing_omissions.exists():
         omission_data = json.loads(existing_omissions.read_text(encoding='utf-8'))
-        omitted_keys = {_key(value) for value in omission_data.get('descriptions', [])}
-        description_keys = transactions['normalised_description'].map(_key)
+        omitted_keys = {description_key(value) for value in omission_data.get('descriptions', [])}
+        description_keys = transactions['normalised_description'].map(description_key)
         keep_rows = ~description_keys.isin(omitted_keys)
         preexisting_omitted_count = int((~keep_rows).sum())
         transactions = transactions.loc[keep_rows].copy()
@@ -217,7 +212,7 @@ def review_matches(input_path, output_path=None, mappings_path=_DEFAULT_MAPPINGS
         tag for tag_id, tag in tags_by_id.items() if tag_id not in linked_tag_ids
     ]
 
-    descriptions = transactions['normalised_description'].map(_key)
+    descriptions = transactions['normalised_description'].map(description_key)
     statuses = transactions['match_method'].fillna('').astype(str).str.casefold()
     missing_category = transactions['category_id'].isna() | transactions['category_id'].eq('')
     needs_review = missing_category | statuses.isin({'unknown', 'fuzzy', 'review'})

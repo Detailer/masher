@@ -1,22 +1,17 @@
 """Exact transaction classification against learned mappings and Toshl taxonomy."""
 
 import json
-import re
 from pathlib import Path
 
 import pandas as pd
 
-_DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
-_DEFAULT_TAXONOMY = _DATA_DIR / 'toshl_categories_tags.json'
-_DEFAULT_MAPPINGS = _DATA_DIR / 'mappings.json'
-_DEFAULT_OMISSIONS = _DATA_DIR / 'omitted_descriptions.json'
+from .utils.cli_dates import add_date_arguments, parse_date_range
+from .utils.descriptions import description_key
+from .utils.paths import MAPPINGS_PATH, OMISSIONS_PATH, TAXONOMY_PATH
 
-
-def _description_key(value):
-    """Normalize whitespace and case for exact description lookups."""
-    if pd.isna(value):
-        return ''
-    return re.sub(r'\s+', ' ', str(value)).strip().casefold()
+_DEFAULT_TAXONOMY = TAXONOMY_PATH
+_DEFAULT_MAPPINGS = MAPPINGS_PATH
+_DEFAULT_OMISSIONS = OMISSIONS_PATH
 
 def _load_mappings(mappings_path, taxonomy_path):
     """Load learned mappings and reject category/tag IDs outside the taxonomy."""
@@ -34,7 +29,7 @@ def _load_mappings(mappings_path, taxonomy_path):
 
     mapping_by_description = {}
     for mapping in mappings_data.get('mappings', []):
-        key = _description_key(mapping.get('description'))
+        key = description_key(mapping.get('description'))
         category_id = str(mapping.get('category_id', ''))
         tag_ids = [str(tag_id) for tag_id in mapping.get('tag_ids', [])]
 
@@ -74,11 +69,11 @@ def match_transactions(
     """
     mapping_by_description = _load_mappings(mappings_path, taxonomy_path)
     result = transactions.copy()
-    keys = result['normalised_description'].map(_description_key)
+    keys = result['normalised_description'].map(description_key)
     omissions_path = Path(omissions_path)
     if omissions_path.exists():
         omission_data = json.loads(omissions_path.read_text(encoding='utf-8'))
-        omitted_keys = {_description_key(value) for value in omission_data.get('descriptions', [])}
+        omitted_keys = {description_key(value) for value in omission_data.get('descriptions', [])}
         keep_rows = ~keys.isin(omitted_keys)
         result = result.loc[keep_rows].copy()
         keys = keys.loc[keep_rows]
@@ -101,8 +96,6 @@ def match_transactions(
 def main():
     """Parse statement files, normalize transactions, and classify them."""
     import argparse
-    from datetime import datetime
-
     from .normalise import normalise_description
     from .parse import parse_hdfc_statement, parse_icici_statement, parse_statements
 
@@ -111,8 +104,7 @@ def main():
     )
     parser.add_argument('hdfc_input', nargs='?', help='optional HDFC statement in .txt format')
     parser.add_argument('icici_input', nargs='?', help='optional ICICI statement in .xls format')
-    parser.add_argument('--start-date', help='start date in DD/MM/YYYY format')
-    parser.add_argument('--end-date', help='end date in DD/MM/YYYY format')
+    add_date_arguments(parser)
     parser.add_argument(
         '--export-to-csv',
         nargs='?',
@@ -123,20 +115,7 @@ def main():
     )
     args = parser.parse_args()
 
-    try:
-        start_date = (
-            datetime.strptime(args.start_date, '%d/%m/%Y').date()
-            if args.start_date else None
-        )
-        end_date = (
-            datetime.strptime(args.end_date, '%d/%m/%Y').date()
-            if args.end_date else None
-        )
-    except ValueError as error:
-        parser.error(str(error))
-
-    if start_date and end_date and start_date > end_date:
-        parser.error('--start-date must be on or before --end-date')
+    start_date, end_date = parse_date_range(args, parser)
 
     if not args.hdfc_input and not args.icici_input:
         parser.error('provide at least one statement input')

@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 
-_DATA_DIR = Path(__file__).resolve().parents[2] / 'data'
-_DEFAULT_TAXONOMY = _DATA_DIR / 'toshl_categories_tags.json'
+from .utils.paths import TAXONOMY_PATH
+
+_DEFAULT_TAXONOMY = TAXONOMY_PATH
 _COLUMNS = [
     'Date', 'Category', 'Expense Amount', 'Tags',
     'Description', 'Account', 'Currency',

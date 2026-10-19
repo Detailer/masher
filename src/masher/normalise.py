@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 from .parse import parse_statements
+from .utils.cli_dates import add_date_arguments, parse_date_range
 
 def normalise_description(parsed_df):
     """Return a copy with descriptions simplified by statement type."""
@@ -45,8 +46,7 @@ def main():
 
     parser.add_argument('hdfc_input', help='HDFC statement in .txt format')
     parser.add_argument('icici_input', help='ICICI statement in .xls format')
-    parser.add_argument('--start-date', help='start date of transactions to process')
-    parser.add_argument('--end-date', help='end date of transactions to process')
+    add_date_arguments(parser)
     parser.add_argument(
         '--export-to-csv',
         nargs='?',
@@ -58,17 +58,7 @@ def main():
 
     args = parser.parse_args()
 
-    start_date = (
-        datetime.strptime(args.start_date, '%d/%m/%Y').date()
-        if args.start_date else None
-    )
-    end_date = (
-        datetime.strptime(args.end_date, '%d/%m/%Y').date()
-        if args.end_date else None
-    )
-
-    if start_date and end_date and start_date > end_date:
-        parser.error('--start-date must be on or before --end-date')
+    start_date, end_date = parse_date_range(args, parser)
 
     parsed_df = parse_statements(args.hdfc_input, args.icici_input, start_date, end_date)
     normalised_df = normalise_description(parsed_df)
