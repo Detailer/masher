@@ -106,7 +106,7 @@ function updateMetrics(animate = false) {
   byId('metrics').querySelectorAll('[data-target]').forEach((counter) => {
     const target = Number(counter.dataset.target);
     const startedAt = performance.now();
-    const duration = 600;
+    const duration = 1200;
     const tick = (now) => {
       const progress = Math.min((now - startedAt) / duration, 1);
       const eased = 1 - (1 - progress) ** 3;

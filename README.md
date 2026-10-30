@@ -24,7 +24,7 @@ Statement files are parsed locally and are not sent to a hosted service.
 
 ```sh
 uv sync --extra ui
-uv run python test-ui/server.py
+uv run python ui/server.py
 ```
 
 2. Open <http://127.0.0.1:8765>. Upload either statement or both. The app parses, normalizes, and matches the files, then shows a paginated transaction sheet sorted newest-first by date. Sort by a column heading, adjust rows per page, and edit amounts, categories, tags, Toshl descriptions, or inclusion inline. Repeated normalized descriptions share a learned mapping. Each row can be included, omitted from the current export once, or omitted permanently from future runs.

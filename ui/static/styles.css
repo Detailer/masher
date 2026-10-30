@@ -63,7 +63,7 @@ button, select, input { accent-color: var(--accent); }
 .eyebrow { color: var(--accent); font: 600 11px/1.5 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
 .hero h1 { margin: 0 0 10px; font: 700 clamp(46px, 6.3vw, 82px)/1 var(--mono); letter-spacing: -.055em; text-transform: uppercase; }
 .hero .hero-subtitle { margin: 0 0 17px; color: var(--soft); font: 650 clamp(22px, 2.5vw, 30px)/1.15 var(--mono); letter-spacing: -.035em; text-transform: uppercase; }
-.hero-copy p { max-width: 510px; margin: 0; color: var(--soft); font: 14px/1.65 var(--mono); }
+.hero-copy p { max-width: 510px; margin: 0; color: var(--soft); font: 14px/1.65 var(--sans); }
 .hero-index { display: flex; align-items: center; gap: 17px; padding-bottom: 8px; }
 .doc-icon { flex: 0 0 auto; width: 125px; height: 125px; }
 .hero-index-copy { display: grid; gap: 12px; }
@@ -87,7 +87,8 @@ h2 { margin: 5px 0 0; font: 600 25px/1.15 var(--mono); letter-spacing: -.05em; t
 .file-field span { color: var(--ink); font: 600 14px var(--sans); }
 .file-field small { color: var(--muted); font: 11px var(--sans); }
 input[type=file] { width: 100%; color: var(--soft); font: 13px var(--sans); }
-input[type=file]::file-selector-button { margin-right: 10px; border: 1px solid var(--line-strong); background: var(--panel-raised); color: var(--ink); padding: 7px 10px; cursor: pointer; font: 600 12px var(--sans); }
+input[type=file]::file-selector-button { margin-right: 10px; border: 1px solid var(--line-strong); background: var(--panel-raised); color: var(--ink); padding: 7px 10px; cursor: pointer; font: 600 12px var(--sans); transition: background 140ms ease, border-color 140ms ease, color 140ms ease; }
+input[type=file]::file-selector-button:hover { border-color: var(--accent); background: var(--page); color: var(--accent); }
 .advanced { margin: 18px 0 0; color: var(--soft); }
 .advanced summary { cursor: pointer; width: fit-content; color: var(--soft); font: 12px var(--sans); }
 .advanced summary:hover { color: var(--ink); }
@@ -103,9 +104,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity
 .button:hover:not(:disabled) { border-color: var(--accent); }
 .button:disabled { cursor: not-allowed; opacity: .48; }
 .primary { background: var(--accent); border-color: var(--accent); color: #161b18; }
-.primary:hover:not(:disabled) { background: #bed7c8; color: #161b18; }
+.primary:hover:not(:disabled) { background: var(--page); border-color: var(--accent); color: var(--accent); }
 .secondary { background: transparent; border-color: var(--line-strong); color: var(--ink); }
-.secondary:hover:not(:disabled) { background: var(--panel-raised); }
+.secondary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #161b18; }
+.downloads .secondary:hover:not(:disabled) { background: #789783; border-color: #789783; color: #101112; }
+.button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .status, .save-status { color: var(--soft); font: 13px var(--sans); }
 .status.error, .save-status.error { color: var(--danger); }
 
