@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Masher · Statement review</title>
+  <title>Masher</title>
+  <link rel="icon" type="image/svg+xml" href="/static/masher-icon.svg?v=2">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
 </head>
@@ -21,12 +22,7 @@
         <p>Bring your bank statements into one clean review. Assign categories and tags, then prepare a Toshl import.</p>
       </div>
       <div class="hero-index" aria-label="Workflow summary">
-        <svg class="doc-icon" viewBox="0 0 48 56" role="img" aria-label="8-bit document icon" shape-rendering="crispEdges">
-          <path class="doc-icon-outline" d="M8 0h24v4h4v8h4v4h8v36H8v4H4v-4H0V4h4V0h4z"/>
-          <path class="doc-icon-paper" d="M8 4h20v12h12v32H8z"/>
-          <path class="doc-icon-fold" d="M28 4h4v4h4v4h4v4H28z"/>
-          <path class="doc-icon-line" d="M12 24h24v4H12zm0 8h20v4H12zm0 8h16v4H12z"/>
-        </svg>
+        <img class="doc-icon" src="/static/masher-icon.svg" alt="Wireframe cube icon">
         <div class="hero-index-copy">
           <div class="hero-index-rule"></div>
           <span class="eyebrow">FROM STATEMENT<br>TO TOSHL</span>
@@ -59,14 +55,14 @@
     <section id="review-section" class="workflow-section review-section">
       <div class="section-heading review-heading">
         <div class="section-title"><span class="section-number">02</span><div class="section-heading-copy"><div class="eyebrow">REVIEW</div><span class="section-heading-rule" aria-hidden="true"></span><h2>Transactions</h2></div></div>
-        <label class="page-size-label">Rows per page<select id="page-size"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
+        <label class="page-size-label">Rows per page<select id="page-size"><option value="all" selected>All rows</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label>
       </div>
       <div class="metrics" id="metrics">
         <div class="metric"><span>Transactions</span><strong>0</strong></div>
         <div class="metric"><span>Matched</span><strong>0</strong></div>
         <div class="metric"><span>Need a category</span><strong>0</strong></div>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap is-empty">
         <table>
           <thead><tr>
             <th><button data-sort="date">Date</button></th>
@@ -77,8 +73,9 @@
             <th><button data-sort="toshl_description">Toshl description</button></th>
             <th><span>Inclusion</span></th>
           </tr></thead>
-          <tbody id="transaction-rows"><tr class="empty-state"><td colspan="7">Choose statement files above and process them to review transactions.</td></tr></tbody>
+          <tbody id="transaction-rows"></tbody>
         </table>
+        <div id="table-empty-state" class="table-empty-state">Choose statement files above and process them to review transactions.</div>
       </div>
       <div id="review-controls" hidden>
         <ul class="notice">

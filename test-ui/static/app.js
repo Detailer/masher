@@ -1,6 +1,6 @@
 const state = {
   transactions: [], categories: [], tags: [], categoryTags: [], unassigned: [],
-  page: 1, pageSize: 50, sort: 'date', ascending: false, ready: false,
+  page: 1, pageSize: 'all', sort: 'date', ascending: false, ready: false,
   metricsAnimated: false, tableAnimated: false,
 };
 const byId = (id) => document.getElementById(id);
@@ -119,10 +119,11 @@ function updateMetrics(animate = false) {
 function render() {
   if (!state.ready) return;
   const order = sortedTransactions();
-  const pages = Math.max(1, Math.ceil(order.length / state.pageSize));
+  const pageSize = state.pageSize === 'all' ? Math.max(order.length, 1) : state.pageSize;
+  const pages = Math.max(1, Math.ceil(order.length / pageSize));
   state.page = Math.min(Math.max(state.page, 1), pages);
-  const start = (state.page - 1) * state.pageSize;
-  const visible = order.slice(start, start + state.pageSize);
+  const start = (state.page - 1) * pageSize;
+  const visible = order.slice(start, start + pageSize);
   byId('page-indicator').textContent = `Page ${state.page} of ${pages}`;
   byId('previous-page').disabled = state.page <= 1;
   byId('next-page').disabled = state.page >= pages;
@@ -152,7 +153,14 @@ function render() {
       <td><select class="inclusion-select" aria-label="Inclusion">${actions.map((value) => `<option ${row.omit_action === value ? 'selected' : ''}>${value}</option>`).join('')}</select></td>
     </tr>`;
   }).join('');
-  byId('transaction-rows').innerHTML = renderedRows || '<tr class="empty-state"><td colspan="7">No transactions found for the selected files and date range.</td></tr>';
+  byId('transaction-rows').innerHTML = renderedRows;
+  const tableWrap = document.querySelector('.table-wrap');
+  const hasTransactions = state.transactions.length > 0;
+  tableWrap.classList.toggle('is-empty', !hasTransactions);
+  tableWrap.classList.toggle('has-transactions', hasTransactions);
+  const emptyState = byId('table-empty-state');
+  emptyState.hidden = hasTransactions;
+  if (!hasTransactions) emptyState.textContent = 'No transactions found for the selected files and date range.';
   state.tableAnimated = true;
 }
 
@@ -222,7 +230,11 @@ document.querySelectorAll('th button[data-sort]').forEach((button) => button.add
   else { state.sort = button.dataset.sort; state.ascending = !['date', 'amount'].includes(state.sort); }
   state.page = 1; render();
 }));
-byId('page-size').addEventListener('change', (event) => { state.pageSize = Number(event.target.value); state.page = 1; render(); });
+byId('page-size').addEventListener('change', (event) => {
+  state.pageSize = event.target.value === 'all' ? 'all' : Number(event.target.value);
+  state.page = 1;
+  render();
+});
 byId('previous-page').addEventListener('click', () => { state.page--; render(); document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 byId('next-page').addEventListener('click', () => { state.page++; render(); document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
