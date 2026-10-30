@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Masher · Statement review</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div class="brand"><span class="brand-name">Masher</span><span class="local-badge">LOCAL</span></div>
+      <div class="masthead-copy">
+        <div class="eyebrow">STATEMENT REVIEW</div>
+        <p>Review statement transactions, assign categories and tags, and prepare a Toshl import.</p>
+      </div>
+    </header>
+
+    <section class="panel setup-panel" aria-labelledby="setup-title">
+      <div class="section-heading">
+        <div><div class="eyebrow">01 / INPUT</div><h1 id="setup-title">Add statements</h1></div>
+        <span class="subtle">Files are processed on this computer</span>
+      </div>
+      <div class="file-grid">
+        <label class="file-field"><span>HDFC statement</span><small>.txt or .csv</small><input id="hdfc" type="file" accept=".txt,.csv"></label>
+        <label class="file-field"><span>ICICI statement</span><small>.xls or .xlsx</small><input id="icici" type="file" accept=".xls,.xlsx"></label>
+      </div>
+      <details class="advanced">
+        <summary>Dates and local data files</summary>
+        <div class="advanced-grid">
+          <label>From<input id="start-date" type="date"></label>
+          <label>Through<input id="end-date" type="date"></label>
+          <label class="wide">Toshl categories and tags<input id="taxonomy-path" type="text"></label>
+          <label class="wide">Saved mappings<input id="mappings-path" type="text"></label>
+          <label class="wide">Omitted descriptions<input id="omissions-path" type="text"></label>
+        </div>
+      </details>
+      <div class="action-row"><button id="process-button" class="button primary" type="button">Process statements</button><span id="process-status" class="status" role="status"></span></div>
+    </section>
+
+    <section id="review-section" class="review-section" hidden>
+      <div class="section-heading review-heading">
+        <div><div class="eyebrow">02 / REVIEW</div><h1>Transactions</h1></div>
+        <label class="page-size-label">Rows per page<select id="page-size"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
+      </div>
+      <div class="metrics" id="metrics"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th><button data-sort="date">Date</button></th>
+            <th><button data-sort="normalised_description">Transaction</button></th>
+            <th><button data-sort="amount">Amount</button></th>
+            <th><button data-sort="category_id">Category</button></th>
+            <th><button data-sort="tag_ids">Tags</button></th>
+            <th><button data-sort="toshl_description">Description</button></th>
+            <th><span>Inclusion</span></th>
+          </tr></thead>
+          <tbody id="transaction-rows"></tbody>
+        </table>
+      </div>
+      <p class="notice">Omit once removes a transaction from these downloads. Omit always also saves its normalized description so future statement runs skip it. Edits remain in this page until you save the review.</p>
+      <div class="save-row">
+        <label class="check-label"><input id="skip-unclassified" type="checkbox"> Export classified transactions only when some rows have no category</label>
+        <button id="save-button" class="button primary" type="button">Save review and prepare Toshl CSV</button>
+      </div>
+      <div class="pager">
+        <button id="previous-page" class="button secondary" type="button">← Previous</button>
+        <strong id="page-indicator">Page 1 of 1</strong>
+        <button id="next-page" class="button secondary" type="button">Next →</button>
+      </div>
+      <div id="save-status" class="save-status" role="status"></div>
+      <div id="downloads" class="downloads" hidden>
+        <a class="button secondary" href="/api/download/reviewed">Download reviewed transactions CSV</a>
+        <a class="button primary" href="/api/download/toshl">Download Toshl import CSV</a>
+      </div>
+    </section>
+    <footer>Masher runs locally. Statement contents are not sent to a remote service.</footer>
+  </main>
+</body>
+</html>

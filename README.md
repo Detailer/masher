@@ -20,18 +20,18 @@ The project requires Python 3.12 or newer. `uv` will use an installed compatible
 ### Local WEB UI
 Statement files are parsed locally and are not sent to a hosted service.
 
-1. From the project root, install the optional UI dependency and start Streamlit:
+1. From the project root, install the optional Flask dependency and start the local server:
 
 ```sh
 uv sync --extra ui
-uv run streamlit run test-ui/app.py --server.address 127.0.0.1
+uv run python test-ui/server.py
 ```
 
-2. Open the local URL printed by Streamlit. Upload either statement or both. The app parses, normalizes, and matches the files, then shows a paginated transaction sheet sorted newest-first by date. Click a column heading to sort by it, and click again to reverse the order. The sheet shows 50 rows per page with previous/next arrow controls below the list. Amounts, category, tags, and the optional Toshl `Description` field can be edited inline. Repeated normalized descriptions share a learned mapping. Each row can be included, omitted from the current export once, or omitted permanently from future runs.
+2. Open <http://127.0.0.1:8765>. Upload either statement or both. The app parses, normalizes, and matches the files, then shows a paginated transaction sheet sorted newest-first by date. Sort by a column heading, adjust rows per page, and edit amounts, categories, tags, Toshl descriptions, or inclusion inline. Repeated normalized descriptions share a learned mapping. Each row can be included, omitted from the current export once, or omitted permanently from future runs.
 
-3. Saving writes manual mappings and permanent omissions to the local JSON files selected in the sidebar. The app uses `masher.export_to_toshl` to prepare the Toshl import CSV. The reviewed and Toshl CSVs are offered as browser downloads and are not saved into the repository automatically.
+3. Saving writes manual mappings and permanent omissions to the local JSON files selected under “Dates and local data files.” The app uses `masher.export_to_toshl` to prepare the Toshl import CSV. The reviewed and Toshl CSVs are offered as browser downloads and are not saved into the repository automatically.
 
-4. The defaults are `data/toshl_categories_tags.json`, `data/mappings.json`, and `data/omitted_descriptions.json`. Change their paths in the sidebar to use another local data set.
+4. The defaults are `data/toshl_categories_tags.json`, `data/mappings.json`, and `data/omitted_descriptions.json`. Stop the server with Ctrl+C.
 
 ### Manual 
 

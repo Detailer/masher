@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ui = ["streamlit>=1.45"]
+ui = ["flask>=3.1"]
 
 [build-system]
 requires = ["setuptools>=61"]
