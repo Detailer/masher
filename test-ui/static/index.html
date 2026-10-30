@@ -10,18 +10,34 @@
 </head>
 <body>
   <main class="shell">
-    <header class="masthead">
-      <div class="brand"><span class="brand-name">Masher</span><span class="local-badge">LOCAL</span></div>
-      <div class="masthead-copy">
-        <div class="eyebrow">STATEMENT REVIEW</div>
-        <p>Review statement transactions, assign categories and tags, and prepare a Toshl import.</p>
-      </div>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Masher home"><span class="brand-name">Masher</span><span class="local-badge">LOCAL</span></a>
     </header>
 
-    <section class="panel setup-panel" aria-labelledby="setup-title">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <h1 id="setup-title">Masher</h1>
+        <h2 class="hero-subtitle">Statement review</h2>
+        <p>Bring your bank statements into one clean review. Assign categories and tags, then prepare a Toshl import.</p>
+      </div>
+      <div class="hero-index" aria-label="Workflow summary">
+        <svg class="doc-icon" viewBox="0 0 48 56" role="img" aria-label="8-bit document icon" shape-rendering="crispEdges">
+          <path class="doc-icon-outline" d="M8 0h24v4h4v8h4v4h8v36H8v4H4v-4H0V4h4V0h4z"/>
+          <path class="doc-icon-paper" d="M8 4h20v12h12v32H8z"/>
+          <path class="doc-icon-fold" d="M28 4h4v4h4v4h4v4H28z"/>
+          <path class="doc-icon-line" d="M12 24h24v4H12zm0 8h20v4H12zm0 8h16v4H12z"/>
+        </svg>
+        <div class="hero-index-copy">
+          <div class="hero-index-rule"></div>
+          <span class="eyebrow">FROM STATEMENT<br>TO TOSHL</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="import-section" class="workflow-section setup-panel" aria-labelledby="input-title">
       <div class="section-heading">
-        <div><div class="eyebrow">01 / INPUT</div><h1 id="setup-title">Add statements</h1></div>
-        <span class="subtle">Files are processed on this computer</span>
+        <div class="section-title"><span class="section-number">01</span><div class="section-heading-copy"><div class="eyebrow">INPUT</div><span class="section-heading-rule" aria-hidden="true"></span><h2 id="input-title">Add statements</h2></div></div>
+        <span class="local-status"><span class="status-dot"></span>Runs on this device</span>
       </div>
       <div class="file-grid">
         <label class="file-field"><span>HDFC statement</span><small>.txt or .csv</small><input id="hdfc" type="file" accept=".txt,.csv"></label>
@@ -37,15 +53,19 @@
           <label class="wide">Omitted descriptions<input id="omissions-path" type="text"></label>
         </div>
       </details>
-      <div class="action-row"><button id="process-button" class="button primary" type="button">Process statements</button><span id="process-status" class="status" role="status"></span></div>
+      <div class="action-row"><button id="process-button" class="button primary" type="button"><svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5h7l3 3v10H3zM10 1.5v3h3M5 7h6M5 9.5h3M5 12h2"/><path d="m9 11 1.5 1.5L14 9"/></svg>Process statements</button><span id="process-status" class="status" role="status"></span></div>
     </section>
 
-    <section id="review-section" class="review-section" hidden>
+    <section id="review-section" class="workflow-section review-section">
       <div class="section-heading review-heading">
-        <div><div class="eyebrow">02 / REVIEW</div><h1>Transactions</h1></div>
+        <div class="section-title"><span class="section-number">02</span><div class="section-heading-copy"><div class="eyebrow">REVIEW</div><span class="section-heading-rule" aria-hidden="true"></span><h2>Transactions</h2></div></div>
         <label class="page-size-label">Rows per page<select id="page-size"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
       </div>
-      <div class="metrics" id="metrics"></div>
+      <div class="metrics" id="metrics">
+        <div class="metric"><span>Transactions</span><strong>0</strong></div>
+        <div class="metric"><span>Matched</span><strong>0</strong></div>
+        <div class="metric"><span>Need a category</span><strong>0</strong></div>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -54,29 +74,36 @@
             <th><button data-sort="amount">Amount</button></th>
             <th><button data-sort="category_id">Category</button></th>
             <th><button data-sort="tag_ids">Tags</button></th>
-            <th><button data-sort="toshl_description">Description</button></th>
+            <th><button data-sort="toshl_description">Toshl description</button></th>
             <th><span>Inclusion</span></th>
           </tr></thead>
-          <tbody id="transaction-rows"></tbody>
+          <tbody id="transaction-rows"><tr class="empty-state"><td colspan="7">Choose statement files above and process them to review transactions.</td></tr></tbody>
         </table>
       </div>
-      <p class="notice">Omit once removes a transaction from these downloads. Omit always also saves its normalized description so future statement runs skip it. Edits remain in this page until you save the review.</p>
-      <div class="save-row">
-        <label class="check-label"><input id="skip-unclassified" type="checkbox"> Export classified transactions only when some rows have no category</label>
-        <button id="save-button" class="button primary" type="button">Save review and prepare Toshl CSV</button>
-      </div>
-      <div class="pager">
-        <button id="previous-page" class="button secondary" type="button">← Previous</button>
-        <strong id="page-indicator">Page 1 of 1</strong>
-        <button id="next-page" class="button secondary" type="button">Next →</button>
-      </div>
-      <div id="save-status" class="save-status" role="status"></div>
-      <div id="downloads" class="downloads" hidden>
-        <a class="button secondary" href="/api/download/reviewed">Download reviewed transactions CSV</a>
-        <a class="button primary" href="/api/download/toshl">Download Toshl import CSV</a>
+      <div id="review-controls" hidden>
+        <ul class="notice">
+          <li>Omit once excludes a transaction from this export. Omit always also saves its normalized description for future runs.</li>
+          <li>Downloads include your current edits. Category and tag mappings update only when Update mappings is checked and you download the Toshl import.</li>
+        </ul>
+        <div class="save-row">
+          <div class="export-options">
+            <label class="check-label"><input id="update-mappings" type="checkbox" checked> Update mappings</label>
+            <label class="check-label"><input id="skip-unclassified" type="checkbox"> Export classified transactions only when some rows have no category</label>
+          </div>
+        </div>
+        <div class="pager">
+          <button id="previous-page" class="button secondary" type="button" disabled>← Previous</button>
+          <strong id="page-indicator">Page 1 of 1</strong>
+          <button id="next-page" class="button secondary" type="button" disabled>Next →</button>
+        </div>
+        <div id="save-status" class="save-status" role="status"></div>
+        <div id="downloads" class="downloads" hidden>
+          <button id="download-toshl" class="button primary" type="button"><svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v9m0 0 3.5-3.5M8 11 4.5 7.5M2 11v3h12v-3"/></svg>Download Toshl import CSV</button>
+          <button id="download-reviewed" class="button secondary" type="button"><svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5h7l3 3v10H3zM10 1.5v3h3M5 8h6M5 10.5h6M5 13h4"/></svg>Download reviewed transactions CSV</button>
+        </div>
       </div>
     </section>
-    <footer>Masher runs locally. Statement contents are not sent to a remote service.</footer>
+    <footer>Masher runs locally. Statement contents are not sent to a remote service. <span aria-hidden="true">|</span> <time id="footer-date"></time></footer>
   </main>
 </body>
 </html>

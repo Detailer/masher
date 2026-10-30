@@ -170,6 +170,9 @@ def save():
         return jsonify(error='Process statement files before saving a review.'), 400
     payload = request.get_json(silent=True) or {}
     submitted = payload.get('transactions')
+    download_kind = payload.get('download_kind')
+    if download_kind not in {'reviewed', 'toshl'}:
+        return jsonify(error='Choose a CSV to download.'), 400
     if not isinstance(submitted, list) or len(submitted) != len(review_state['transactions']):
         return jsonify(error='The review data is incomplete. Process the statements again.'), 400
 
@@ -267,47 +270,46 @@ def save():
                        match_method='manual' if category_id else 'unknown')
             output_rows.append(row)
 
-        if mapping_updates:
+        reviewed_frame = pd.DataFrame(output_rows)
+        csv_frame = reviewed_frame.drop(columns=['index', 'omit_action'], errors='ignore').copy()
+        csv_frame['tag_ids'] = csv_frame['tag_ids'].map(json.dumps)
+        reviewed_bytes = csv_frame.to_csv(index=False).encode('utf-8-sig')
+        if download_kind == 'reviewed':
+            file_bytes = reviewed_bytes
+            skipped_count = sum(not row.get('category_id') for row in output_rows)
+            exported_count = len(output_rows) - skipped_count
+        else:
+            with tempfile.TemporaryDirectory(prefix='masher-export-') as temp_dir:
+                input_path = Path(temp_dir) / 'reviewed.csv'
+                output_path = Path(temp_dir) / 'toshl.csv'
+                csv_frame.to_csv(input_path, index=False)
+                _, exported_count, skipped_count = export_to_toshl(
+                    input_path, output_path,
+                    taxonomy_path=review_state['taxonomy_path'],
+                    skip_unclassified=bool(payload.get('skip_unclassified')),
+                )
+                file_bytes = output_path.read_bytes()
+        if download_kind == 'toshl' and mapping_updates and payload.get('update_mappings', True):
             mapping_counts = _save_mappings(mapping_updates, review_state['mappings_path'], taxonomy)
         else:
             mapping_counts = {'added': 0, 'changed': 0, 'unchanged': 0}
         if always_omitted:
             _save_omissions(list(always_omitted.values()), review_state['omissions_path'])
-
-        reviewed_frame = pd.DataFrame(output_rows)
-        csv_frame = reviewed_frame.drop(columns=['index', 'omit_action'], errors='ignore').copy()
-        csv_frame['tag_ids'] = csv_frame['tag_ids'].map(json.dumps)
-        reviewed_bytes = csv_frame.to_csv(index=False).encode('utf-8-sig')
-        with tempfile.TemporaryDirectory(prefix='masher-export-') as temp_dir:
-            input_path = Path(temp_dir) / 'reviewed.csv'
-            output_path = Path(temp_dir) / 'toshl.csv'
-            csv_frame.to_csv(input_path, index=False)
-            _, exported_count, skipped_count = export_to_toshl(
-                input_path, output_path,
-                taxonomy_path=review_state['taxonomy_path'],
-                skip_unclassified=bool(payload.get('skip_unclassified')),
-            )
-            toshl_bytes = output_path.read_bytes()
-        review_state['downloads'] = {'reviewed': reviewed_bytes, 'toshl': toshl_bytes}
-        return jsonify(
-            message='Review saved and Toshl import prepared.',
-            mappings=mapping_counts,
-            transactions=len(output_rows),
-            exported=exported_count,
-            skipped=skipped_count,
-            unclassified=sum(not row.get('category_id') for row in output_rows),
+        filename = 'matched_reviewed.csv' if download_kind == 'reviewed' else 'matched_reviewed_toshl.csv'
+        response = send_file(
+            io.BytesIO(file_bytes),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=filename,
         )
+        response.headers['X-Review-Exported'] = str(exported_count)
+        response.headers['X-Review-Skipped'] = str(skipped_count)
+        response.headers['X-Mappings-Added'] = str(mapping_counts['added'])
+        response.headers['X-Mappings-Changed'] = str(mapping_counts['changed'])
+        response.headers['X-Mappings-Unchanged'] = str(mapping_counts['unchanged'])
+        return response
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
         return jsonify(error=str(error)), 400
-
-
-@app.get('/api/download/<kind>')
-def download(kind: str):
-    downloads = review_state.get('downloads', {})
-    if kind not in downloads:
-        return jsonify(error='Save the review before downloading files.'), 404
-    filename = 'matched_reviewed.csv' if kind == 'reviewed' else 'matched_reviewed_toshl.csv'
-    return send_file(io.BytesIO(downloads[kind]), mimetype='text/csv', as_attachment=True, download_name=filename)
 
 
 if __name__ == '__main__':

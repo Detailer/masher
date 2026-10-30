@@ -1,6 +1,7 @@
 const state = {
   transactions: [], categories: [], tags: [], categoryTags: [], unassigned: [],
   page: 1, pageSize: 50, sort: 'date', ascending: false, ready: false,
+  metricsAnimated: false, tableAnimated: false,
 };
 const byId = (id) => document.getElementById(id);
 const categoryName = new Map();
@@ -13,11 +14,11 @@ function showStatus(element, message = '', error = false) {
 function setBusy(button, busy, label) {
   button.disabled = busy;
   if (busy) {
-    button.dataset.label = button.textContent;
+    button.dataset.originalMarkup = button.innerHTML;
     button.textContent = label;
-  } else if (button.dataset.label) {
-    button.textContent = button.dataset.label;
-    delete button.dataset.label;
+  } else if (button.dataset.originalMarkup) {
+    button.innerHTML = button.dataset.originalMarkup;
+    delete button.dataset.originalMarkup;
   }
 }
 async function responseJson(response) {
@@ -90,12 +91,30 @@ function tagPicker(row, index) {
     <div class="tag-options">${options.map((id) => `<label class="tag-option"><input type="checkbox" data-tag-row="${index}" value="${esc(id)}" ${selected.has(id) ? 'checked' : ''}>${esc(tagName.get(id) || id)}</label>`).join('') || '<span class="tag-option">No tags available</span>'}</div>
   </details>`;
 }
-function updateMetrics() {
+function updateMetrics(animate = false) {
   const count = state.transactions.length;
   const matched = state.transactions.filter((row) => row.category_id).length;
-  byId('metrics').innerHTML = [
+  const metrics = [
     ['Transactions', count], ['Matched', matched], ['Need a category', count - matched],
-  ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join('');
+  ];
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  byId('metrics').innerHTML = metrics.map(([label, value]) =>
+    `<div class="metric"><span>${label}</span><strong data-target="${value}">${animate && !reduceMotion ? 0 : value.toLocaleString()}</strong></div>`
+  ).join('');
+  if (!animate || reduceMotion) return;
+
+  byId('metrics').querySelectorAll('[data-target]').forEach((counter) => {
+    const target = Number(counter.dataset.target);
+    const startedAt = performance.now();
+    const duration = 600;
+    const tick = (now) => {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      counter.textContent = Math.round(target * eased).toLocaleString();
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
 }
 function render() {
   if (!state.ready) return;
@@ -108,17 +127,22 @@ function render() {
   byId('previous-page').disabled = state.page <= 1;
   byId('next-page').disabled = state.page >= pages;
   byId('review-section').hidden = false;
-  updateMetrics();
+  byId('review-controls').hidden = false;
+  updateMetrics(!state.metricsAnimated);
+  state.metricsAnimated = true;
   document.querySelectorAll('th button[data-sort]').forEach((button) => {
     const key = button.dataset.sort;
-    const labels = { date: 'Date', normalised_description: 'Transaction', amount: 'Amount', category_id: 'Category', tag_ids: 'Tags', toshl_description: 'Description' };
+    const labels = { date: 'Date', normalised_description: 'Transaction', amount: 'Amount', category_id: 'Category', tag_ids: 'Tags', toshl_description: 'Toshl description' };
     button.textContent = `${labels[key]}${state.sort === key ? (state.ascending ? ' ↑' : ' ↓') : ''}`;
   });
-  byId('transaction-rows').innerHTML = visible.map((index) => {
+  const animateRows = !state.tableAnimated && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const renderedRows = visible.map((index, rowPosition) => {
     const row = state.transactions[index];
     const categories = `<option value="">Choose…</option>${state.categories.map((item) => `<option value="${esc(item.id)}" ${String(row.category_id || '') === String(item.id) ? 'selected' : ''}>${esc(item.name)}</option>`).join('')}`;
     const actions = ['Include', 'Omit once', 'Omit always'];
-    return `<tr data-index="${index}">
+    const entryClass = animateRows ? ' class="row-enter"' : '';
+    const entryDelay = animateRows ? ` style="--row-delay:${Math.min(rowPosition, 8) * 24}ms"` : '';
+    return `<tr${entryClass}${entryDelay} data-index="${index}">
       <td><span class="date-main">${esc(formatDate(row.date))}</span><span class="date-type">${esc(row.type || '')}</span></td>
       <td><div class="normalized">${esc(row.normalised_description || '(no normalized description)')}</div><span class="raw-description" title="${esc(row.description || '')}">${esc(row.description || '')}</span></td>
       <td class="amount-cell"><input class="cell-input" type="number" step="0.01" value="${esc(row.amount)}" aria-label="Amount"></td>
@@ -128,6 +152,8 @@ function render() {
       <td><select class="inclusion-select" aria-label="Inclusion">${actions.map((value) => `<option ${row.omit_action === value ? 'selected' : ''}>${value}</option>`).join('')}</select></td>
     </tr>`;
   }).join('');
+  byId('transaction-rows').innerHTML = renderedRows || '<tr class="empty-state"><td colspan="7">No transactions found for the selected files and date range.</td></tr>';
+  state.tableAnimated = true;
 }
 
 byId('process-button').addEventListener('click', async () => {
@@ -152,7 +178,8 @@ byId('process-button').addEventListener('click', async () => {
     state.categories.forEach((item) => categoryName.set(String(item.id), item.name));
     state.tags.forEach((item) => tagName.set(String(item.id), item.name));
     state.page = 1; state.sort = 'date'; state.ascending = false; state.ready = true;
-    byId('downloads').hidden = true;
+    state.metricsAnimated = false; state.tableAnimated = false;
+    byId('downloads').hidden = false;
     showStatus(status, `Processed ${state.transactions.length} transaction(s).`);
     showStatus(byId('save-status'));
     render();
@@ -199,18 +226,71 @@ byId('page-size').addEventListener('change', (event) => { state.pageSize = Numbe
 byId('previous-page').addEventListener('click', () => { state.page--; render(); document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 byId('next-page').addEventListener('click', () => { state.page++; render(); document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
-byId('save-button').addEventListener('click', async () => {
-  const button = byId('save-button'); const status = byId('save-status');
-  setBusy(button, true, 'Saving review…'); showStatus(status, 'Validating edits, updating mappings, and preparing CSV files.');
+async function downloadReview(kind, button) {
+  const status = byId('save-status');
+  const otherButton = byId(kind === 'reviewed' ? 'download-toshl' : 'download-reviewed');
+  const originalLabel = button.textContent;
+  setBusy(button, true, kind === 'reviewed' ? 'Preparing reviewed CSV…' : 'Preparing Toshl CSV…');
+  otherButton.disabled = true;
+  showStatus(status, 'Preparing the selected CSV…');
   try {
-    const data = await responseJson(await fetch('/api/save', {
+    const response = await fetch('/api/save', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transactions: state.transactions, skip_unclassified: byId('skip-unclassified').checked }),
-    }));
-    showStatus(status, `${data.message} ${data.exported} row(s) ready for Toshl; ${data.skipped} skipped. Mappings: ${data.mappings.added} added, ${data.mappings.changed} changed, ${data.mappings.unchanged} unchanged.`);
-    byId('downloads').hidden = false;
+      body: JSON.stringify({
+        transactions: state.transactions,
+        update_mappings: byId('update-mappings').checked,
+        skip_unclassified: byId('skip-unclassified').checked,
+        download_kind: kind,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `Request failed (${response.status})`);
+    }
+    const blob = await response.blob();
+    const filename = kind === 'reviewed' ? 'matched_reviewed.csv' : 'matched_reviewed_toshl.csv';
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    const exported = response.headers.get('X-Review-Exported') || '0';
+    const skipped = response.headers.get('X-Review-Skipped') || '0';
+    const mappingMessage = kind !== 'toshl'
+      ? 'Mappings were not updated; use the Toshl import download to apply mapping changes.'
+      : byId('update-mappings').checked
+        ? `Mappings: ${response.headers.get('X-Mappings-Added') || '0'} added, ${response.headers.get('X-Mappings-Changed') || '0'} changed, ${response.headers.get('X-Mappings-Unchanged') || '0'} unchanged.`
+        : 'Mapping updates were off.';
+    showStatus(status, `${originalLabel} ready. ${exported} Toshl row(s); ${skipped} unclassified row(s) skipped. ${mappingMessage}`);
   } catch (error) { showStatus(status, error.message, true); }
-  finally { setBusy(button, false); }
-});
+  finally {
+    setBusy(button, false);
+    otherButton.disabled = false;
+  }
+}
+
+byId('download-reviewed').addEventListener('click', (event) => downloadReview('reviewed', event.currentTarget));
+byId('download-toshl').addEventListener('click', (event) => downloadReview('toshl', event.currentTarget));
+
+const siteHeader = document.querySelector('.site-header');
+const heroHeading = byId('setup-title');
+if ('IntersectionObserver' in window) {
+  const headerObserver = new IntersectionObserver(([entry]) => {
+    siteHeader.classList.toggle('is-visible', !entry.isIntersecting && entry.boundingClientRect.bottom <= 0);
+  });
+  headerObserver.observe(heroHeading);
+} else {
+  const updateHeaderVisibility = () => {
+    siteHeader.classList.toggle('is-visible', heroHeading.getBoundingClientRect().bottom <= 0);
+  };
+  window.addEventListener('scroll', updateHeaderVisibility, { passive: true });
+  updateHeaderVisibility();
+}
+
+const currentDate = new Date();
+byId('footer-date').textContent = `${currentDate.toLocaleString('en', { month: 'long' })}, ${currentDate.getFullYear()}`;
 
 loadConfig();
