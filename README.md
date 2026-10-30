@@ -1,7 +1,4 @@
-# MASHER
-
-A matcher tool to convert my bank statments to toshl data that learns based on past categorisations.
-To ease my manual bookeeping using toshl.
+![Masher — statement review](header.png)
 
 ## Setup
 
