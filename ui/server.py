@@ -18,6 +18,7 @@ if str(SOURCE_DIR) not in sys.path:
     sys.path.insert(0, str(SOURCE_DIR))
 
 from masher.export_to_toshl import export_to_toshl
+from masher.import_to_toshl import ToshlAPIError, import_to_toshl
 from masher.matcher import match_transactions
 from masher.normalise import normalise_description
 from masher.parse import parse_hdfc_statement, parse_icici_statement
@@ -171,8 +172,8 @@ def save():
     payload = request.get_json(silent=True) or {}
     submitted = payload.get('transactions')
     download_kind = payload.get('download_kind')
-    if download_kind not in {'reviewed', 'toshl'}:
-        return jsonify(error='Choose a CSV to download.'), 400
+    if download_kind not in {'reviewed', 'toshl', 'sync'}:
+        return jsonify(error='Choose a review action.'), 400
     if not isinstance(submitted, list) or len(submitted) != len(review_state['transactions']):
         return jsonify(error='The review data is incomplete. Process the statements again.'), 400
 
@@ -274,6 +275,7 @@ def save():
         csv_frame = reviewed_frame.drop(columns=['index', 'omit_action'], errors='ignore').copy()
         csv_frame['tag_ids'] = csv_frame['tag_ids'].map(json.dumps)
         reviewed_bytes = csv_frame.to_csv(index=False).encode('utf-8-sig')
+        import_result = None
         if download_kind == 'reviewed':
             file_bytes = reviewed_bytes
             skipped_count = sum(not row.get('category_id') for row in output_rows)
@@ -289,12 +291,32 @@ def save():
                     skip_unclassified=bool(payload.get('skip_unclassified')),
                 )
                 file_bytes = output_path.read_bytes()
-        if download_kind == 'toshl' and mapping_updates and payload.get('update_mappings', True):
-            mapping_counts = _save_mappings(mapping_updates, review_state['mappings_path'], taxonomy)
-        else:
-            mapping_counts = {'added': 0, 'changed': 0, 'unchanged': 0}
-        if always_omitted:
-            _save_omissions(list(always_omitted.values()), review_state['omissions_path'])
+                if download_kind == 'sync':
+                    import_result = import_to_toshl(output_path)
+        mapping_counts = {'added': 0, 'changed': 0, 'unchanged': 0}
+        persistence_warning = None
+        try:
+            if download_kind in {'toshl', 'sync'} and mapping_updates and payload.get('update_mappings', True):
+                mapping_counts = _save_mappings(mapping_updates, review_state['mappings_path'], taxonomy)
+            if always_omitted:
+                _save_omissions(list(always_omitted.values()), review_state['omissions_path'])
+        except OSError as error:
+            if download_kind != 'sync':
+                raise
+            persistence_warning = (
+                f'Toshl accepted the import, but a local mapping or omission update failed: {error}. '
+                'Do not sync this review again.'
+            )
+        if download_kind == 'sync':
+            return jsonify(
+                success=True,
+                import_id=import_result['import_id'],
+                import_status=import_result['status'],
+                exported=exported_count,
+                skipped=skipped_count,
+                mapping_counts=mapping_counts,
+                warning=persistence_warning,
+            )
         filename = 'matched_reviewed.csv' if download_kind == 'reviewed' else 'matched_reviewed_toshl.csv'
         response = send_file(
             io.BytesIO(file_bytes),
@@ -308,8 +330,11 @@ def save():
         response.headers['X-Mappings-Changed'] = str(mapping_counts['changed'])
         response.headers['X-Mappings-Unchanged'] = str(mapping_counts['unchanged'])
         return response
-    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, TypeError, KeyError, ToshlAPIError, json.JSONDecodeError) as error:
         return jsonify(error=str(error)), 400
+    except Exception:
+        app.logger.exception('Unexpected error while saving or exporting the transaction review')
+        return jsonify(error='The server could not prepare the export. Check the ui/server.py terminal for details.'), 500
 
 
 if __name__ == '__main__':

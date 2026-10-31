@@ -240,11 +240,12 @@ byId('next-page').addEventListener('click', () => { state.page++; render(); docu
 
 async function downloadReview(kind, button) {
   const status = byId('save-status');
-  const otherButton = byId(kind === 'reviewed' ? 'download-toshl' : 'download-reviewed');
-  const originalLabel = button.textContent;
-  setBusy(button, true, kind === 'reviewed' ? 'Preparing reviewed CSV…' : 'Preparing Toshl CSV…');
-  otherButton.disabled = true;
-  showStatus(status, 'Preparing the selected CSV…');
+  const actionButtons = [...document.querySelectorAll('#downloads button')];
+  const busyLabel = kind === 'reviewed' ? 'Preparing reviewed CSV…'
+    : kind === 'sync' ? 'Syncing with Toshl…' : 'Preparing Toshl CSV…';
+  setBusy(button, true, busyLabel);
+  actionButtons.forEach((actionButton) => { if (actionButton !== button) actionButton.disabled = true; });
+  showStatus(status, kind === 'sync' ? 'Sending the reviewed transactions to Toshl…' : 'Preparing the selected CSV…');
   try {
     const response = await fetch('/api/save', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -256,36 +257,55 @@ async function downloadReview(kind, button) {
       }),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || `Request failed (${response.status})`);
+      const body = await response.text();
+      let message = `Request failed (${response.status})`;
+      try {
+        const error = JSON.parse(body);
+        message = error.error || message;
+      } catch {
+        message = `Server returned an unreadable error (${response.status}). Check the ui/server.py terminal for details.`;
+      }
+      throw new Error(message);
     }
-    const blob = await response.blob();
-    const filename = kind === 'reviewed' ? 'matched_reviewed.csv' : 'matched_reviewed_toshl.csv';
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = objectUrl;
-    link.download = filename;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-    const exported = response.headers.get('X-Review-Exported') || '0';
-    const skipped = response.headers.get('X-Review-Skipped') || '0';
-    const mappingMessage = kind !== 'toshl'
-      ? 'Mappings were not updated; use the Toshl import download to apply mapping changes.'
-      : byId('update-mappings').checked
-        ? `Mappings: ${response.headers.get('X-Mappings-Added') || '0'} added, ${response.headers.get('X-Mappings-Changed') || '0'} changed, ${response.headers.get('X-Mappings-Unchanged') || '0'} unchanged.`
-        : 'Mapping updates were off.';
-    showStatus(status, `${originalLabel} ready. ${exported} Toshl row(s); ${skipped} unclassified row(s) skipped. ${mappingMessage}`);
+    if (kind === 'sync') {
+      const result = await response.json();
+      const counts = result.mapping_counts;
+      const mappingMessage = byId('update-mappings').checked
+        ? ` Mappings: ${counts.added} added, ${counts.changed} changed, ${counts.unchanged} unchanged.`
+        : ' Mapping updates were off.';
+      const warning = result.warning ? ` ${result.warning}` : '';
+      showStatus(status, `Toshl import ${result.import_id} submitted (${result.import_status}): ${result.exported} transaction(s); ${result.skipped} unclassified row(s) skipped.${mappingMessage}${warning}`, Boolean(result.warning));
+    } else {
+      const blob = await response.blob();
+      const filename = kind === 'reviewed' ? 'matched_reviewed.csv' : 'matched_reviewed_toshl.csv';
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      const exported = response.headers.get('X-Review-Exported') || '0';
+      const skipped = response.headers.get('X-Review-Skipped') || '0';
+      const mappingMessage = kind !== 'toshl'
+        ? 'Mappings were not updated; use a Toshl import action to apply mapping changes.'
+        : byId('update-mappings').checked
+          ? `Mappings: ${response.headers.get('X-Mappings-Added') || '0'} added, ${response.headers.get('X-Mappings-Changed') || '0'} changed, ${response.headers.get('X-Mappings-Unchanged') || '0'} unchanged.`
+          : 'Mapping updates were off.';
+      const successLabel = kind === 'reviewed' ? 'Reviewed transactions CSV downloaded.' : 'Toshl import CSV downloaded.';
+      showStatus(status, `${successLabel} ${exported} Toshl row(s); ${skipped} unclassified row(s) skipped. ${mappingMessage}`);
+    }
   } catch (error) { showStatus(status, error.message, true); }
   finally {
     setBusy(button, false);
-    otherButton.disabled = false;
+    actionButtons.forEach((actionButton) => { actionButton.disabled = false; });
   }
 }
 
 byId('download-reviewed').addEventListener('click', (event) => downloadReview('reviewed', event.currentTarget));
 byId('download-toshl').addEventListener('click', (event) => downloadReview('toshl', event.currentTarget));
+byId('sync-toshl').addEventListener('click', (event) => downloadReview('sync', event.currentTarget));
 
 const siteHeader = document.querySelector('.site-header');
 const heroHeading = byId('setup-title');

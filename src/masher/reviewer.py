@@ -123,7 +123,7 @@ def _save_mappings(reviewed, mappings_path, taxonomy):
     unassigned_tag_ids = known_tag_ids - {tag_id for _, tag_id in valid_links}
 
     added = changed = unchanged = 0
-    for description_key, mapping in reviewed.items():
+    for mapping_key, mapping in reviewed.items():
         category_id = mapping['category_id']
         tag_ids = mapping['tag_ids']
         if category_id not in category_ids:
@@ -140,10 +140,10 @@ def _save_mappings(reviewed, mappings_path, taxonomy):
             'tag_ids': tag_ids,
             'source': 'manual',
         }
-        old_record = existing.get(description_key)
+        old_record = existing.get(mapping_key)
         if old_record is None:
             mappings.append(new_record)
-            existing[description_key] = new_record
+            existing[mapping_key] = new_record
             added += 1
         elif (
             str(old_record.get('category_id')) == category_id
